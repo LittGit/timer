@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nedtellingsklokke</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.5s ease;
+            background: #1f2937;
+        }
+
+        /* Config panel */
+        .config-panel {
+            background: #1f2937;
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 550px;
+            width: 90%;
+        }
+
+        .config-panel h1 {
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+
+        .config-panel .subtitle {
+            color: #9ca3af;
+            margin-bottom: 30px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .config-section {
+            background: #111827;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-section h2 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #e5e7eb;
+        }
+
+        .config-panel label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .config-panel input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #374151;
+            border-radius: 8px;
+            background: #1f2937;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-family: monospace;
+        }
+
+        .config-panel input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .config-panel input:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn-connect {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-connect:hover {
+            background: #2563eb;
+        }
+
+        .btn-connect:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+
+        .config-error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .config-help {
+            margin-top: 25px;
+            padding: 20px;
+            background: #111827;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #9ca3af;
+            line-height: 1.7;
+        }
+
+        .config-help h3 {
+            color: #e5e7eb;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .config-help ol {
+            margin-left: 20px;
+        }
+
+        .config-help code {
+            background: #374151;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .config-help a {
+            color: #60a5fa;
+        }
+
+        /* Mode selector */
+        .mode-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .mode-selector button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .mode-selector button.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .mode-selector button:not(.active) {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .room-badge {
+            background: #374151;
+            color: #9ca3af;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        /* Tekniker-modus */
+        .technician-mode {
+            background: #1f2937;
+            color: white;
+        }
+
+        .technician-panel {
+            max-width: 600px;
+            width: 90%;
+            padding: 30px;
+        }
+
+        .technician-panel h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 300;
+            color: #9ca3af;
+        }
+
+        .time-display-small {
+            font-size: 5rem;
+            font-weight: 700;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #111827;
+            border-radius: 16px;
+        }
+
+        .status-indicator {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .status-running { color: #22c55e; }
+        .status-paused { color: #eab308; }
+        .status-stopped { color: #6b7280; }
+        .status-finished { color: #ef4444; }
+
+        .control-section {
+            margin-bottom: 25px;
+        }
+
+        .control-section h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-start { background: #22c55e; color: white; }
+        .btn-pause { background: #eab308; color: #1f2937; }
+        .btn-stop { background: #ef4444; color: white; }
+        .btn-reset { background: #6b7280; color: white; }
+
+        .btn-preset {
+            background: #374151;
+            color: white;
+            min-width: 70px;
+            flex: 0;
+        }
+
+        .btn-preset:hover {
+            background: #4b5563;
+        }
+
+        .time-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .time-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            background: #111827;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .btn-set {
+            background: #2563eb;
+            color: white;
+            flex: 0;
+            min-width: 100px;
+        }
+
+        .adjust-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-adjust {
+            background: #374151;
+            color: white;
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+
+        /* Display-modus */
+        .display-mode {
+            background: #111827;
+        }
+
+        .display-mode.warning {
+            background: #854d0e;
+        }
+
+        .display-mode.danger {
+            background: #7f1d1d;
+        }
+
+        .display-mode.finished {
+            background: #dc2626;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { background: #dc2626; }
+            50% { background: #991b1b; }
+        }
+
+        .display-panel {
+            text-align: center;
+            color: white;
+        }
+
+        .time-display-large {
+            font-size: min(35vw, 300px);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            text-shadow: 0 0 60px rgba(255,255,255,0.3);
+        }
+
+        .display-status {
+            font-size: 24px;
+            margin-top: 30px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            opacity: 0.7;
+        }
+
+        .display-message {
+            font-size: 48px;
+            margin-top: 20px;
+            font-weight: 300;
+        }
+
+        /* Fullskjerm-knapp */
+        .fullscreen-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Meldingsfelt */
+        .message-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #374151;
+            border-radius: 10px;
+            background: #111827;
+            color: white;
+            font-size: 16px;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        /* Disconnect button */
+        .btn-disconnect {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 16px;
+            background: #374151;
+            border: none;
+            border-radius: 8px;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-disconnect:hover {
+            background: #4b5563;
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            .time-display-small {
+                font-size: 3.5rem;
+            }
+            
+            .btn {
+                padding: 12px 15px;
+                font-size: 14px;
+            }
+            
+            .btn-preset {
+                min-width: 60px;
+            }
+            
+            .adjust-buttons {
+                gap: 6px;
+            }
+            
+            .btn-adjust {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Config panel -->
+    <div id="configPanel" class="config-panel">
+        <h1>🎬 Nedtellingsklokke</h1>
+        <p class="subtitle">Synkronisert klokke for tekniker og innledere. Koble til Firebase for å komme i gang.</p>
+
+        <div id="configError" class="config-error hidden"></div>
+
+        <div class="config-section">
+            <h2>Firebase-konfigurasjon</h2>
+            <label for="apiKey">API Key</label>
+            <input type="text" id="apiKey" placeholder="AIzaSy..." value="417071627996">
+            
+            <label for="projectId">Project ID</label>
+            <input type="text" id="projectId" placeholder="mitt-prosjekt-12345" value="timer-ce4a9">
+            
+            <label for="databaseURL">Database URL (valgfritt)</label>
+            <input type="text" id="databaseURL" placeholder="https://mitt-prosjekt-12345-default-rtdb.europe-west1.firebasedatabase.app">
+        </div>
+
+        <div class="config-section">
+            <h2>Rom-kode</h2>
+            <label for="roomCode">Kode for å koble enheter sammen</label>
+            <input type="text" id="roomCode" placeholder="sal1" value="sal1" style="font-size: 18px; text-transform: lowercase;">
+        </div>
+
+        <button class="btn-connect" onclick="connect()">Koble til</button>
+
+        <div class="config-help">
+            <h3>Slik setter du opp Firebase (gratis):</h3>
+            <ol>
+                <li>Gå til <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+                <li>Opprett nytt prosjekt (eller bruk eksisterende)</li>
+                <li>Gå til <strong>Build → Realtime Database</strong> og opprett database</li>
+                <li>Velg <code>europe-west1</code> som region</li>
+                <li>Under <strong>Rules</strong>, sett midlertidig:<br>
+                    <code>{ ".read": true, ".write": true }</code></li>
+                <li>Gå til <strong>Project Settings → General</strong> og kopier API Key og Project ID</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Mode selector -->
+    <div id="modeSelector" class="mode-selector hidden">
+        <div class="connection-status">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="connectionText">Kobler til...</span>
+        </div>
+        <div id="roomBadge" class="room-badge"></div>
+        <button id="btnTechnician" class="active" onclick="setMode('technician')">Tekniker</button>
+        <button id="btnDisplay" onclick="setMode('display')">Display</button>
+    </div>
+
+    <!-- Tekniker-panel -->
+    <div id="technicianPanel" class="technician-panel hidden">
+        <h1>NEDTELLINGSKLOKKE</h1>
+        
+        <div id="statusIndicator" class="status-indicator status-stopped">Stoppet</div>
+        
+        <div id="timeDisplaySmall" class="time-display-small">05:00</div>
+
+        <div class="control-section">
+            <h3>Kontroller</h3>
+            <div class="button-row">
+                <button class="btn btn-start" onclick="startTimer()">▶ Start</button>
+                <button class="btn btn-pause" onclick="pauseTimer()">⏸ Pause</button>
+                <button class="btn btn-stop" onclick="stopTimer()">⏹ Stopp</button>
+                <button class="btn btn-reset" onclick="resetTimer()">↺ Reset</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3>Forhåndsdefinerte tider</h3>
+            <div class="button-row">
+                <button class="btn btn-preset" onclick="setPreset(1)">1 min</button>
+                <button class="btn btn-preset" onclick="setPreset(2)">2 min</button>
+                <button class="btn btn-preset" onclick="setPreset(5)">5 min</button>
+                <button class="btn btn-preset" onclick="setPreset(10)">10 min</button>
+                <button class="btn btn-preset" onclick="setPreset(15)">15 min</button>
+                <button class="btn btn-preset" onclick="setPreset(20)">20 min</button>
+                <button class="btn btn-preset" onclick="setPreset(30)">30 min</button>
+                <button class="btn btn-preset" onclick="setPreset(45)">45 min</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3>Sett tid manuelt (MM:SS)</h3>
+            <div class="time-input-group">
+                <input type="text" id="timeInput" class="time-input" placeholder="05:00" value="05:00">
+                <button class="btn btn-set" onclick="setCustomTime()">Sett tid</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3>Juster tid</h3>
+            <div class="adjust-buttons">
+                <button class="btn btn-adjust" onclick="adjustTime(-60)">-1 min</button>
+                <button class="btn btn-adjust" onclick="adjustTime(-30)">-30s</button>
+                <button class="btn btn-adjust" onclick="adjustTime(-10)">-10s</button>
+                <button class="btn btn-adjust" onclick="adjustTime(10)">+10s</button>
+                <button class="btn btn-adjust" onclick="adjustTime(30)">+30s</button>
+                <button class="btn btn-adjust" onclick="adjustTime(60)">+1 min</button>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h3>Melding til display (vises når tid er ute)</h3>
+            <input type="text" id="messageInput" class="message-input" placeholder="Takk!" value="Takk!" onchange="updateMessage()">
+        </div>
+    </div>
+
+    <!-- Display-panel -->
+    <div id="displayPanel" class="display-panel hidden">
+        <div id="timeDisplayLarge" class="time-display-large">05:00</div>
+        <div id="displayStatus" class="display-status"></div>
+        <div id="displayMessage" class="display-message hidden"></div>
+    </div>
+
+    <button id="fullscreenBtn" class="fullscreen-btn hidden" onclick="toggleFullscreen()">⛶ Fullskjerm</button>
+    <button id="disconnectBtn" class="btn-disconnect hidden" onclick="disconnect()">Koble fra</button>
+
+    <script>
+        // State
+        let state = {
+            totalSeconds: 300,
+            remainingSeconds: 300,
+            isRunning: false,
+            isPaused: false,
+            message: 'Takk!',
+            lastUpdate: Date.now(),
+            serverTimeOffset: 0
+        };
+
+        let localMode = 'technician';
+        let db = null;
+        let roomRef = null;
+        let localTimerInterval = null;
+
+        // Lagre config i localStorage
+        function saveConfig() {
+            const config = {
+                apiKey: document.getElementById('apiKey').value,
+                projectId: document.getElementById('projectId').value,
+                databaseURL: document.getElementById('databaseURL').value,
+                roomCode: document.getElementById('roomCode').value
+            };
+            localStorage.setItem('countdownConfig', JSON.stringify(config));
+        }
+
+        // Last config fra localStorage
+        function loadConfig() {
+            const saved = localStorage.getItem('countdownConfig');
+            if (saved) {
+                const config = JSON.parse(saved);
+                document.getElementById('apiKey').value = config.apiKey || '';
+                document.getElementById('projectId').value = config.projectId || '';
+                document.getElementById('databaseURL').value = config.databaseURL || '';
+                document.getElementById('roomCode').value = config.roomCode || 'sal1';
+            }
+        }
+
+        // Koble til Firebase
+        async function connect() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const projectId = document.getElementById('projectId').value.trim();
+            let databaseURL = document.getElementById('databaseURL').value.trim();
+            const roomCode = document.getElementById('roomCode').value.trim().toLowerCase();
+
+            if (!apiKey || !projectId) {
+                showError('Fyll inn API Key og Project ID');
+                return;
+            }
+
+            if (!roomCode) {
+                showError('Fyll inn en rom-kode');
+                return;
+            }
+
+            // Auto-generere database URL hvis ikke oppgitt
+            if (!databaseURL) {
+                databaseURL = `https://${projectId}-default-rtdb.europe-west1.firebasedatabase.app`;
+            }
+
+            try {
+                // Initialiser Firebase
+                const firebaseConfig = {
+                    apiKey: apiKey,
+                    projectId: projectId,
+                    databaseURL: databaseURL
+                };
+
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+
+                db = firebase.database();
+                
+                // Synkroniser servertid
+                const offsetRef = db.ref('.info/serverTimeOffset');
+                offsetRef.on('value', (snap) => {
+                    state.serverTimeOffset = snap.val() || 0;
+                });
+
+                // Koble til rom
+                roomRef = db.ref(`countdown-rooms/${roomCode}`);
+
+                // Lytt til endringer
+                roomRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const oldRunning = state.isRunning;
+                        state = { ...state, ...data };
+                        
+                        // Beregn faktisk gjenværende tid basert på serverens tidsstempel
+                        if (state.isRunning && !state.isPaused && data.lastUpdate) {
+                            const serverNow = Date.now() + state.serverTimeOffset;
+                            const elapsed = Math.floor((serverNow - data.lastUpdate) / 1000);
+                            state.remainingSeconds = data.remainingSeconds - elapsed;
+                        }
+                        
+                        updateDisplay();
+                        
+                        // Oppdater meldings-input hvis vi er i tekniker-modus
+                        if (localMode === 'technician' && data.message) {
+                            document.getElementById('messageInput').value = data.message;
+                        }
+                    }
+                    updateConnectionStatus(true);
+                });
+
+                // Håndter frakobling
+                roomRef.onDisconnect().cancel();
+
+                saveConfig();
+                showMainInterface(roomCode);
+
+            } catch (error) {
+                console.error('Firebase error:', error);
+                showError(`Kunne ikke koble til: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('configError');
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function showMainInterface(roomCode) {
+            document.getElementById('configPanel').classList.add('hidden');
+            document.getElementById('modeSelector').classList.remove('hidden');
+            document.getElementById('technicianPanel').classList.remove('hidden');
+            document.getElementById('disconnectBtn').classList.remove('hidden');
+            document.getElementById('roomBadge').textContent = `Rom: ${roomCode}`;
+            document.body.className = 'technician-mode';
+            
+            startLocalTimer();
+        }
+
+        function disconnect() {
+            if (roomRef) {
+                roomRef.off();
+            }
+            if (localTimerInterval) {
+                clearInterval(localTimerInterval);
+            }
+            
+            document.getElementById('configPanel').classList.remove('hidden');
+            document.getElementById('modeSelector').classList.add('hidden');
+            document.getElementById('technicianPanel').classList.add('hidden');
+            document.getElementById('displayPanel').classList.add('hidden');
+            document.getElementById('fullscreenBtn').classList.add('hidden');
+            document.getElementById('disconnectBtn').classList.add('hidden');
+            document.getElementById('configError').classList.add('hidden');
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Tilkoblet';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Frakoblet';
+            }
+        }
+
+        // Lokal timer for jevn visning
+        function startLocalTimer() {
+            if (localTimerInterval) clearInterval(localTimerInterval);
+            
+            localTimerInterval = setInterval(() => {
+                if (state.isRunning && !state.isPaused) {
+                    // Beregn basert på servertid
+                    const serverNow = Date.now() + state.serverTimeOffset;
+                    const elapsed = Math.floor((serverNow - state.lastUpdate) / 1000);
+                    const calculatedRemaining = state.remainingSeconds - elapsed + Math.floor((serverNow - state.lastUpdate) / 1000);
+                    
+                    // Bare oppdater lokalt for jevn visning
+                    state.remainingSeconds--;
+                    updateDisplay();
+                }
+            }, 1000);
+        }
+
+        // Synkroniser til Firebase
+        function syncToFirebase() {
+            if (!roomRef) return;
+            
+            const serverNow = Date.now() + state.serverTimeOffset;
+            
+            roomRef.set({
+                totalSeconds: state.totalSeconds,
+                remainingSeconds: state.remainingSeconds,
+                isRunning: state.isRunning,
+                isPaused: state.isPaused,
+                message: state.message,
+                lastUpdate: serverNow
+            });
+        }
+
+        // Formater sekunder til MM:SS
+        function formatTime(seconds) {
+            const mins = Math.floor(Math.abs(seconds) / 60);
+            const secs = Math.abs(seconds) % 60;
+            const sign = seconds < 0 ? '-' : '';
+            return `${sign}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Parse MM:SS til sekunder
+        function parseTime(timeStr) {
+            const parts = timeStr.split(':');
+            if (parts.length === 2) {
+                return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            } else if (parts.length === 1) {
+                return parseInt(parts[0]) * 60;
+            }
+            return 0;
+        }
+
+        // Oppdater alle visuelle elementer
+        function updateDisplay() {
+            const timeStr = formatTime(state.remainingSeconds);
+            
+            // Tekniker-visning
+            document.getElementById('timeDisplaySmall').textContent = timeStr;
+            
+            // Display-visning
+            document.getElementById('timeDisplayLarge').textContent = timeStr;
+
+            // Status
+            const statusEl = document.getElementById('statusIndicator');
+            const displayStatusEl = document.getElementById('displayStatus');
+            const displayMessageEl = document.getElementById('displayMessage');
+            const body = document.body;
+
+            // Fjern status-klasser fra body
+            body.classList.remove('warning', 'danger', 'finished');
+
+            if (state.remainingSeconds <= 0) {
+                statusEl.textContent = 'Ferdig!';
+                statusEl.className = 'status-indicator status-finished';
+                displayStatusEl.textContent = '';
+                displayMessageEl.textContent = state.message;
+                displayMessageEl.classList.remove('hidden');
+                if (localMode === 'display') {
+                    body.classList.add('finished');
+                }
+            } else if (state.isRunning && !state.isPaused) {
+                statusEl.textContent = 'Kjører';
+                statusEl.className = 'status-indicator status-running';
+                displayStatusEl.textContent = '';
+                displayMessageEl.classList.add('hidden');
+                
+                if (localMode === 'display') {
+                    if (state.remainingSeconds <= 30) {
+                        body.classList.add('danger');
+                    } else if (state.remainingSeconds <= 60) {
+                        body.classList.add('warning');
+                    }
+                }
+            } else if (state.isPaused) {
+                statusEl.textContent = 'Pauset';
+                statusEl.className = 'status-indicator status-paused';
+                displayStatusEl.textContent = 'PAUSE';
+                displayMessageEl.classList.add('hidden');
+            } else {
+                statusEl.textContent = 'Stoppet';
+                statusEl.className = 'status-indicator status-stopped';
+                displayStatusEl.textContent = '';
+                displayMessageEl.classList.add('hidden');
+            }
+
+            // Farge på tid i tekniker-panel
+            const timeSmall = document.getElementById('timeDisplaySmall');
+            if (state.remainingSeconds <= 0) {
+                timeSmall.style.color = '#ef4444';
+            } else if (state.remainingSeconds <= 30) {
+                timeSmall.style.color = '#ef4444';
+            } else if (state.remainingSeconds <= 60) {
+                timeSmall.style.color = '#eab308';
+            } else {
+                timeSmall.style.color = '#22c55e';
+            }
+        }
+
+        // Timer-funksjoner
+        function startTimer() {
+            if (state.remainingSeconds <= 0) {
+                state.remainingSeconds = state.totalSeconds;
+            }
+            state.isRunning = true;
+            state.isPaused = false;
+            state.lastUpdate = Date.now() + state.serverTimeOffset;
+            
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function pauseTimer() {
+            state.isPaused = !state.isPaused;
+            state.lastUpdate = Date.now() + state.serverTimeOffset;
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function stopTimer() {
+            state.isRunning = false;
+            state.isPaused = false;
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function resetTimer() {
+            state.isRunning = false;
+            state.isPaused = false;
+            state.remainingSeconds = state.totalSeconds;
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function setPreset(minutes) {
+            state.totalSeconds = minutes * 60;
+            state.remainingSeconds = state.totalSeconds;
+            state.isRunning = false;
+            state.isPaused = false;
+            document.getElementById('timeInput').value = `${minutes}:00`;
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function setCustomTime() {
+            const input = document.getElementById('timeInput').value;
+            const seconds = parseTime(input);
+            if (seconds > 0) {
+                state.totalSeconds = seconds;
+                state.remainingSeconds = seconds;
+                state.isRunning = false;
+                state.isPaused = false;
+                updateDisplay();
+                syncToFirebase();
+            }
+        }
+
+        function adjustTime(seconds) {
+            state.remainingSeconds = Math.max(0, state.remainingSeconds + seconds);
+            if (!state.isRunning) {
+                state.totalSeconds = state.remainingSeconds;
+            }
+            state.lastUpdate = Date.now() + state.serverTimeOffset;
+            updateDisplay();
+            syncToFirebase();
+        }
+
+        function updateMessage() {
+            state.message = document.getElementById('messageInput').value || 'Takk!';
+            syncToFirebase();
+        }
+
+        // Mode switching
+        function setMode(mode) {
+            localMode = mode;
+            const body = document.body;
+            const techPanel = document.getElementById('technicianPanel');
+            const dispPanel = document.getElementById('displayPanel');
+            const btnTech = document.getElementById('btnTechnician');
+            const btnDisp = document.getElementById('btnDisplay');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (mode === 'technician') {
+                body.className = 'technician-mode';
+                techPanel.classList.remove('hidden');
+                dispPanel.classList.add('hidden');
+                btnTech.classList.add('active');
+                btnDisp.classList.remove('active');
+                fullscreenBtn.classList.add('hidden');
+                disconnectBtn.classList.remove('hidden');
+            } else {
+                body.className = 'display-mode';
+                techPanel.classList.add('hidden');
+                dispPanel.classList.remove('hidden');
+                btnTech.classList.remove('active');
+                btnDisp.classList.add('active');
+                fullscreenBtn.classList.remove('hidden');
+                disconnectBtn.classList.add('hidden');
+            }
+            updateDisplay();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                document.querySelector('.mode-selector').style.display = 'none';
+            } else {
+                document.exitFullscreen();
+                document.querySelector('.mode-selector').style.display = 'flex';
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    if (state.isRunning && !state.isPaused) {
+                        pauseTimer();
+                    } else if (state.isPaused) {
+                        pauseTimer();
+                    } else {
+                        startTimer();
+                    }
+                    break;
+                case 'Escape':
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else {
+                        stopTimer();
+                    }
+                    break;
+                case 'r':
+                    resetTimer();
+                    break;
+                case 'f':
+                    if (localMode === 'display') {
+                        toggleFullscreen();
+                    }
+                    break;
+                case 'd':
+                    setMode('display');
+                    break;
+                case 't':
+                    setMode('technician');
+                    break;
+            }
+        });
+
+        // Fullscreen change handler
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.querySelector('.mode-selector').style.display = 'flex';
+            }
+        });
+
+        // Last config ved oppstart
+        loadConfig();
+        updateDisplay();
+    </script>
+</body>
+</html>
